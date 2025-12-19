@@ -236,6 +236,12 @@ def main():
         help="Number of evaluation runs to perform (default: 1).",
         default=1,
     )
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        default=True,
+        help="Run browser in headless mode (no visible window). Screenshots still work.",
+    )
     args = parser.parse_args()
 
     # If task-id is provided, load task config from registry
@@ -256,6 +262,11 @@ def main():
         else:
             print(f"Warning: Task '{args.task_id}' not found in tasks.yaml")
     ComputerClass = computers_config[args.computer]
+
+    # Build kwargs for computer class (headless only supported by local-playwright)
+    computer_kwargs = {}
+    if args.computer == "local-playwright" and args.headless:
+        computer_kwargs["headless"] = True
 
     # Eval mode: run task(s) and exit
     if args.eval:
@@ -281,7 +292,7 @@ def main():
             print(f"{'=' * 50}\n")
 
             # Create fresh browser session for each run
-            with ComputerClass() as computer:
+            with ComputerClass(**computer_kwargs) as computer:
                 agent = Agent(
                     computer=computer,
                     acknowledge_safety_check_callback=make_safety_check_callback(args.autonomous),
@@ -414,7 +425,7 @@ def main():
         return
 
     # Interactive mode
-    with ComputerClass() as computer:
+    with ComputerClass(**computer_kwargs) as computer:
         agent = Agent(
             computer=computer,
             acknowledge_safety_check_callback=make_safety_check_callback(args.autonomous),
