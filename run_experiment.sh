@@ -1,0 +1,10 @@
+python cli.py --task-id dashdish-custom-1 --autonomous --runs 5
+python cli.py --task-id dashdish-custom-2 --autonomous --runs 5
+python cli.py --task-id dashdish-custom-3 --autonomous --runs 5
+python cli.py --task-id dashdish-custom-4 --autonomous --runs 5
+python cli.py --task-id dashdish-custom-5 --autonomous --runs 5
+python cli.py --task-id dashdish-custom-6 --autonomous --runs 5
+python cli.py --task-id dashdish-custom-7 --autonomous --runs 5
+python cli.py --task-id dashdish-custom-8 --autonomous --runs 5
+python cli.py --task-id dashdish-custom-9 --autonomous --runs 5
+python cli.py --task-id dashdish-custom-10 --autonomous --runs 5

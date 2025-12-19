@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-7",
+  "run": 3,
+  "timestamp": "2025-12-19T00:47:46.110472",
+  "total_time_seconds": 107.19,
+  "evaluated_success": false,
+  "final_result": "The most expensive item from Petco on the DoorDash website is the \"Blue Buffalo Dog Food (30 lb)\" priced at $58.99.",
+  "final_state_path": "results/dashdish-custom-7/run3_20251219_004745_final_state.json",
+  "log_path": "results/dashdish-custom-7/run3_20251219_004745_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 54796,
+    "output_tokens": 853,
+    "total_tokens": 55649,
+    "api_calls": 14,
+    "estimated_cost_usd": 0.174624,
+    "model": "computer-use-preview"
+  }
+}

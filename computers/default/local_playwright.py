@@ -1,4 +1,5 @@
 from playwright.sync_api import Browser, Page
+
 from ..shared.base_playwright import BasePlaywrightComputer
 
 
@@ -15,6 +16,19 @@ class LocalPlaywrightBrowser(BasePlaywrightComputer):
             f"--window-size={width},{height}",
             "--disable-extensions",
             "--disable-file-system",
+            # Flags to ensure fresh session and no persistent state
+            "--incognito",
+            "--disable-background-networking",
+            "--disable-client-side-phishing-detection",
+            "--disable-default-apps",
+            "--disable-hang-monitor",
+            "--disable-popup-blocking",
+            "--disable-prompt-on-repost",
+            "--disable-sync",
+            "--disable-translate",
+            "--metrics-recording-only",
+            "--no-first-run",
+            "--safebrowsing-disable-auto-update",
         ]
         browser = self._playwright.chromium.launch(
             chromium_sandbox=True,
@@ -23,7 +37,10 @@ class LocalPlaywrightBrowser(BasePlaywrightComputer):
             env={"DISPLAY": ":0"},
         )
 
-        context = browser.new_context()
+        context = browser.new_context(
+            storage_state=None,
+            accept_downloads=False,
+        )
 
         # Add event listeners for page creation and closure
         context.on("page", self._handle_new_page)
