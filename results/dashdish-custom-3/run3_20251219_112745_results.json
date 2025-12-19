@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-3",
+  "run": 3,
+  "timestamp": "2025-12-19T11:27:46.587843",
+  "total_time_seconds": 148.55,
+  "evaluated_success": true,
+  "final_result": "I placed an order for tacos from Taco Boys on the DASHDISH site. The order has been confirmed and is being prepared for delivery. You can expect the \"Al Pastor Tacos (3)\" to arrive according to the delivery time indicated in the order confirmation.",
+  "final_state_path": "results/dashdish-custom-3/run3_20251219_112745_final_state.json",
+  "log_path": "results/dashdish-custom-3/run3_20251219_112745_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 68021,
+    "output_tokens": 1108,
+    "total_tokens": 69129,
+    "api_calls": 16,
+    "estimated_cost_usd": 0.217359,
+    "model": "computer-use-preview"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-2",
+  "run": 1,
+  "timestamp": "2025-12-19T10:34:20.180600",
+  "total_time_seconds": 449.75,
+  "evaluated_success": true,
+  "final_result": "Here are the first three reviews from each store in the \"Costume party ready\" category:\n\n**Walgreens:**\n1. Noah G - 3.8/5 (02/04/24): \"Good quality and service. Everything arrived fresh and well-packaged. Satisfied customer.\"\n2. Olivia X - 4/5 (04/06/24): \"Satisfactory service! Everything was handled professionally and arrived in good condition.\"\n3. Ethan U - 3.9/5\n\n**CVS:**\n1. Mike R - 3.8/5 (07/12/24): \"Pleasant experience! Staff was helpful and delivery was efficient. Good value for money.\"\n2. Isabella C - 4.4/5 (02/10/24): \"Satisfactory service! Everything was handled professionally and arrived in good condition.\"\n3. Lucas T - 4/5 \n\n**Office Depot OfficeMax:**\n1. Alex B - 4.1/5 (07/13/24): \"Nice experience! Good selection and reasonable prices. Delivery was reliable.\"\n2. Maria G - 3.8/5 (03/25/24): \"Good experience with this place. Fast delivery and decent prices. Will likely order again.\"\n3. John D - 4/5 \n\nWould you like any more details?",
+  "final_state_path": "results/dashdish-custom-2/run1_20251219_103419_final_state.json",
+  "log_path": "results/dashdish-custom-2/run1_20251219_103419_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 194369,
+    "output_tokens": 2559,
+    "total_tokens": 196928,
+    "api_calls": 37,
+    "estimated_cost_usd": 0.613815,
+    "model": "computer-use-preview"
+  }
+}

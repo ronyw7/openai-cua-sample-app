@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-9",
+  "run": 1,
+  "timestamp": "2025-12-19T13:34:21.355724",
+  "total_time_seconds": 683.34,
+  "evaluated_success": true,
+  "final_result": "The cheapest fries among the options you provided are from Popeyes, with their Cajun Fries priced at $3.49.",
+  "final_state_path": "results/dashdish-custom-9/run1_20251219_133420_final_state.json",
+  "log_path": "results/dashdish-custom-9/run1_20251219_133420_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 301521,
+    "output_tokens": 2348,
+    "total_tokens": 303869,
+    "api_calls": 55,
+    "estimated_cost_usd": 0.932739,
+    "model": "computer-use-preview"
+  }
+}

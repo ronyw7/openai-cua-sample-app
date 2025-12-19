@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-4",
+  "run": 1,
+  "timestamp": "2025-12-19T11:35:40.804791",
+  "total_time_seconds": 68.78,
+  "evaluated_success": false,
+  "final_result": "I checked the Wingstop menu on DoorDash for Honey BBQ Wings. Unfortunately, there's no option to order the wings with the sauce on the side; they only come as described.",
+  "final_state_path": "results/dashdish-custom-4/run1_20251219_113539_final_state.json",
+  "log_path": "results/dashdish-custom-4/run1_20251219_113539_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 33175,
+    "output_tokens": 613,
+    "total_tokens": 33788,
+    "api_calls": 10,
+    "estimated_cost_usd": 0.106881,
+    "model": "computer-use-preview"
+  }
+}

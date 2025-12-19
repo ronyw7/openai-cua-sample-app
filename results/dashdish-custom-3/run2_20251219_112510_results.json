@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-3",
+  "run": 2,
+  "timestamp": "2025-12-19T11:25:11.200221",
+  "total_time_seconds": 144.92,
+  "evaluated_success": true,
+  "final_result": "I placed the order for \"Al Pastor Tacos (3)\" from Taco Boys on DoorDash. The order number is #ORD-1761634800949-352. It should be delivered by around 2:30 PM to the designated address. Let me know if you need further assistance!",
+  "final_state_path": "results/dashdish-custom-3/run2_20251219_112510_final_state.json",
+  "log_path": "results/dashdish-custom-3/run2_20251219_112510_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 72784,
+    "output_tokens": 1121,
+    "total_tokens": 73905,
+    "api_calls": 17,
+    "estimated_cost_usd": 0.231804,
+    "model": "computer-use-preview"
+  }
+}
