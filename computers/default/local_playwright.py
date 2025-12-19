@@ -14,6 +14,7 @@ class LocalPlaywrightBrowser(BasePlaywrightComputer):
         width, height = self.get_dimensions()
         launch_args = [
             f"--window-size={width},{height}",
+            "--no-sandbox",
             "--disable-extensions",
             "--disable-file-system",
             # Flags to ensure fresh session and no persistent state
@@ -31,7 +32,7 @@ class LocalPlaywrightBrowser(BasePlaywrightComputer):
             "--safebrowsing-disable-auto-update",
         ]
         browser = self._playwright.chromium.launch(
-            chromium_sandbox=True,
+            chromium_sandbox=False,
             headless=self.headless,
             args=launch_args,
             env={"DISPLAY": ":0"},
