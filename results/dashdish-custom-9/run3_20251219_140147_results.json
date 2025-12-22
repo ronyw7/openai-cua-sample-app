@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-9",
+  "run": 3,
+  "timestamp": "2025-12-19T14:01:48.301578",
+  "total_time_seconds": 741.05,
+  "evaluated_success": true,
+  "final_result": "The cheapest regular fries option among the listed restaurants is at Popeyes, priced at $3.49 for Cajun fries. Here are the prices for comparison:\n\n- **Wingstop:** Seasoned Fries for $4.99\n- **Man vs. Fries:** Basic fries not found; Sweet Potato Fries at $9.99 seemed simplest\n- **McDonald's:** French Fries Large for $3.99\n- **Popeyes:** Cajun Fries for $3.49\n- **Ike's:** Dirty Fries for $6.16",
+  "final_state_path": "results/dashdish-custom-9/run3_20251219_140147_final_state.json",
+  "log_path": "results/dashdish-custom-9/run3_20251219_140147_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 301208,
+    "output_tokens": 2754,
+    "total_tokens": 303962,
+    "api_calls": 55,
+    "estimated_cost_usd": 0.936672,
+    "model": "computer-use-preview"
+  }
+}

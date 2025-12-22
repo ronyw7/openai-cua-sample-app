@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-4",
+  "run": 2,
+  "timestamp": "2025-12-19T11:40:21.641164",
+  "total_time_seconds": 273.77,
+  "evaluated_success": false,
+  "final_result": "I found that the Wingstop menu options don't directly offer customization for Honey BBQ Wings with sauce on the side. However, you can reach out to the restaurant directly at (415) 306-1079 to ask about special requests and see if they can accommodate your preference. Would you like any further assistance with this?",
+  "final_state_path": "results/dashdish-custom-4/run2_20251219_114020_final_state.json",
+  "log_path": "results/dashdish-custom-4/run2_20251219_114020_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 120379,
+    "output_tokens": 1530,
+    "total_tokens": 121909,
+    "api_calls": 25,
+    "estimated_cost_usd": 0.379497,
+    "model": "computer-use-preview"
+  }
+}

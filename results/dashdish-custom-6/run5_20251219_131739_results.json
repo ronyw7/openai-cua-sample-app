@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-6",
+  "run": 5,
+  "timestamp": "2025-12-19T13:17:40.537927",
+  "total_time_seconds": 732.66,
+  "evaluated_success": false,
+  "final_result": "None of the first five restaurants in the \"Best near you\" section have less than 20 reviews.",
+  "final_state_path": "results/dashdish-custom-6/run5_20251219_131739_final_state.json",
+  "log_path": "results/dashdish-custom-6/run5_20251219_131739_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 269233,
+    "output_tokens": 2238,
+    "total_tokens": 271471,
+    "api_calls": 50,
+    "estimated_cost_usd": 0.834555,
+    "model": "computer-use-preview"
+  }
+}

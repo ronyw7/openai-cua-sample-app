@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-1",
+  "run": 4,
+  "timestamp": "2025-12-19T10:25:41.818025",
+  "total_time_seconds": 123.88,
+  "evaluated_success": false,
+  "final_result": "Here are the prices for the requested items from Stonemill Matcha:\n- Matcha Croissant: $4.49\n- Iced Matcha Latte: $6.99\n- Ceremonial Matcha Latte: $19.08 for a small size\n- Matcha Mochi Set (6): $17.8\n\nIs there anything else you need?",
+  "final_state_path": "results/dashdish-custom-1/run4_20251219_102540_final_state.json",
+  "log_path": "results/dashdish-custom-1/run4_20251219_102540_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 54501,
+    "output_tokens": 849,
+    "total_tokens": 55350,
+    "api_calls": 14,
+    "estimated_cost_usd": 0.173691,
+    "model": "computer-use-preview"
+  }
+}

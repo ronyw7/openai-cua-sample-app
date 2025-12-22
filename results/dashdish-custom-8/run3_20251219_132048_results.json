@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-8",
+  "run": 3,
+  "timestamp": "2025-12-19T13:20:49.692928",
+  "total_time_seconds": 25.35,
+  "evaluated_success": true,
+  "final_result": "It takes approximately 17 minutes to pick up an order from RT Rotisserie.",
+  "final_state_path": "results/dashdish-custom-8/run3_20251219_132048_final_state.json",
+  "log_path": "results/dashdish-custom-8/run3_20251219_132048_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 9416,
+    "output_tokens": 267,
+    "total_tokens": 9683,
+    "api_calls": 5,
+    "estimated_cost_usd": 0.031452,
+    "model": "computer-use-preview"
+  }
+}
