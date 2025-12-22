@@ -1,7 +1,8 @@
-import time
 import base64
-from typing import List, Dict, Literal
-from playwright.sync_api import sync_playwright, Browser, Page
+import time
+from typing import Dict, List, Literal
+
+from playwright.sync_api import Browser, Page, sync_playwright
 from utils import check_blocklisted_url
 
 # Optional: key mapping if your model uses "CUA" style keys
@@ -63,7 +64,6 @@ class BasePlaywrightComputer:
 
         # Set up network interception to flag URLs matching domains in BLOCKED_DOMAINS
         def handle_route(route, request):
-
             url = request.url
             if check_blocklisted_url(url):
                 print(f"Flagging blocked domain: {url}")
