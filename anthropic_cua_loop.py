@@ -313,7 +313,7 @@ def create_anthropic_response(
 def run_agent_loop(
     computer: Computer,
     task: str,
-    model: str = "claude-sonnet-4-5-20250929",
+    model: str = "claude-sonnet-4-20250514",
     start_url: str | None = None,
 ) -> dict:
     """
@@ -498,7 +498,7 @@ def main():
     parser = argparse.ArgumentParser(description="Anthropic Computer Use Agent")
     parser.add_argument("--task", "-t", help="Task to perform (or interactive if not provided)")
     parser.add_argument("--url", "-u", default=os.getenv("START_URL", "https://www.google.com"), help="Starting URL")
-    parser.add_argument("--model", "-m", default="claude-sonnet-4-5-20250929", help="Model to use")
+    parser.add_argument("--model", "-m", default="claude-sonnet-4-20250514", help="Model to use")
     parser.add_argument("--headless", action="store_true", help="Run browser headless")
     parser.add_argument("--width", type=int, default=1024, help="Browser window width")
     parser.add_argument("--height", type=int, default=768, help="Browser window height")
