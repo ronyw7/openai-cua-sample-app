@@ -57,6 +57,15 @@ class AnthropicComputerAdapter:
         self._last_mouse_position = (0, 0)
         # For direct Playwright access when Computer interface is insufficient
         self._page = getattr(computer, "_page", None)
+        # Track keys currently held down (for hold_key action)
+        self._held_keys: set[str] = set()
+
+    def _release_held_keys(self) -> None:
+        """Release all currently held keys."""
+        if self._page and self._held_keys:
+            for key in list(self._held_keys):
+                self._page.keyboard.up(key)
+            self._held_keys.clear()
 
     def execute_action(self, action: str, **params) -> str | None:
         """
@@ -230,6 +239,7 @@ class AnthropicComputerAdapter:
         elif action == "hold_key":
             # Hold a key while performing other actions
             # This is typically used in combination with other actions
+            # The key will be released after the next action is executed
             key = params.get("key", "")
             if self._page:
                 # Map common key names
@@ -243,8 +253,7 @@ class AnthropicComputerAdapter:
                 }
                 mapped_key = key_map.get(key.lower(), key)
                 self._page.keyboard.down(mapped_key)
-                # Note: Caller should call with action to release the key
-                # For now we just press it - release happens on next action
+                self._held_keys.add(mapped_key)
             else:
                 print("Warning: hold_key requires direct Playwright access")
 
@@ -255,6 +264,11 @@ class AnthropicComputerAdapter:
 
         else:
             print(f"Warning: Unknown action '{action}', ignoring")
+
+        # Release any held keys after each action (except hold_key itself)
+        # This implements the "release happens on next action" behavior
+        if action != "hold_key":
+            self._release_held_keys()
 
         return None
 
@@ -348,6 +362,7 @@ def run_agent_loop(
     step = 0
     final_response = None
     all_outputs = []
+    error_message = None
 
     print(f"Starting agent with task: {task}")
     print(f"Model: {model}")
@@ -367,7 +382,8 @@ def run_agent_loop(
                 system=system,
             )
         except Exception as e:
-            print(f"API Error: {e}")
+            error_message = str(e)
+            print(f"API Error: {error_message}")
             break
 
         # Add assistant response to messages
@@ -456,6 +472,16 @@ def run_agent_loop(
     print("=" * 60)
     print(f"Completed in {step} steps")
 
+    if error_message:
+        return {
+            "status": "error",
+            "error": error_message,
+            "steps": step,
+            "final_response": final_response,
+            "outputs": all_outputs,
+            "messages": messages,
+        }
+
     return {
         "status": "completed",
         "steps": step,
@@ -473,7 +499,7 @@ def main():
     parser.add_argument("--task", "-t", help="Task to perform (or interactive if not provided)")
     parser.add_argument("--url", "-u", default=os.getenv("START_URL", "https://www.google.com"), help="Starting URL")
     parser.add_argument("--model", "-m", default="claude-sonnet-4-5-20250929", help="Model to use")
-    parser.add_argument("--headless", type=bool, default=True, help="Run browser headless")
+    parser.add_argument("--headless", action="store_true", help="Run browser headless")
     parser.add_argument("--width", type=int, default=1024, help="Browser window width")
     parser.add_argument("--height", type=int, default=768, help="Browser window height")
     args = parser.parse_args()
