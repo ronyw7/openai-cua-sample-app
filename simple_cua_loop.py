@@ -1,12 +1,10 @@
 from computers import Computer
-from computers import LocalPlaywrightComputer
-from utils import create_response, check_blocklisted_url
+from computers.default import LocalPlaywrightBrowser
+from utils import check_blocklisted_url, create_response
 
 
 def acknowledge_safety_check_callback(message: str) -> bool:
-    response = input(
-        f"Safety Check Warning: {message}\nDo you want to acknowledge and proceed? (y/n): "
-    ).lower()
+    response = input(f"Safety Check Warning: {message}\nDo you want to acknowledge and proceed? (y/n): ").lower()
     return response.strip() == "y"
 
 
@@ -55,7 +53,7 @@ def handle_item(item, computer: Computer):
 
 def main():
     """Run the CUA (Computer Use Assistant) loop, using Local Playwright."""
-    with LocalPlaywrightComputer() as computer:
+    with LocalPlaywrightBrowser() as computer:
         dimensions = computer.get_dimensions()
         tools = [
             {

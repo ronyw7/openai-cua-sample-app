@@ -6,9 +6,14 @@ from ..shared.base_playwright import BasePlaywrightComputer
 class LocalPlaywrightBrowser(BasePlaywrightComputer):
     """Launches a local Chromium instance using Playwright."""
 
-    def __init__(self, headless: bool = False):
+    def __init__(self, headless: bool = False, width: int = 1024, height: int = 768):
         super().__init__()
         self.headless = headless
+        self._width = width
+        self._height = height
+
+    def get_dimensions(self):
+        return (self._width, self._height)
 
     def _get_browser_and_page(self) -> tuple[Browser, Page]:
         width, height = self.get_dimensions()

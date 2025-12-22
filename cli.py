@@ -1,187 +1,25 @@
 import argparse
 import json
-import sys
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.parse import urljoin
 
-import yaml
 from agent.agent import Agent
 from computers import computers_config
 from computers.config import *
 from computers.default import *
-from utils import usage_tracker
 
-_agisdk_path = Path(__file__).parent.parent / "experiments" / "agisdk" / "src"
-if _agisdk_path.exists():
-    sys.path.insert(0, str(_agisdk_path))
-
-FINISH_PAGE_WAIT_TIME = 5  # seconds to wait for finish page to load
-TASKS_FILE = Path(__file__).parent / "tasks.yaml"
-
-
-def load_task_registry() -> Dict[str, Dict[str, Any]]:
-    """Load tasks from tasks.yaml and return as a dict keyed by task ID."""
-    if not TASKS_FILE.exists():
-        return {}
-
-    with open(TASKS_FILE) as f:
-        tasks_list = yaml.safe_load(f) or []
-
-    # Convert list to dict keyed by ID
-    return {task["id"]: task for task in tasks_list if isinstance(task, dict) and "id" in task}
-
-
-def get_task_config(task_id: str) -> Optional[Dict[str, Any]]:
-    """Get task configuration from registry by ID."""
-    registry = load_task_registry()
-    return registry.get(task_id)
-
-
-def create_evaluator(task_id: str, version: str = "custom"):
-    """Create an evaluator for the task, similar to experiments/runner.py."""
-    try:
-        from agisdk.REAL.browsergym.webclones.evaluate import WebCloneEvaluator
-        from agisdk.REAL.browsergym.webclones.task_config import TaskConfig
-
-        task_config = TaskConfig(task_id, version)
-        evaluator = WebCloneEvaluator(task_config)
-        return evaluator
-    except Exception as e:
-        import traceback
-
-        print(f"Failed to create evaluator: {e}")
-        print(f"Traceback:\n{traceback.format_exc()}")
-        return None
-
-
-def fetch_final_state(computer, initial_url: str) -> Optional[Dict[str, Any]]:
-    """Fetch the final state by navigating to the finish page."""
-    try:
-        finish_url = urljoin(initial_url, "finish")
-        print(f"Fetching final state from: {finish_url}")
-
-        computer.goto(finish_url)
-        time.sleep(FINISH_PAGE_WAIT_TIME)
-
-        # Get the JSON from the <pre> element
-        env_state = computer._page.evaluate("() => document.querySelector('pre')?.textContent || ''")
-        if env_state:
-            return json.loads(env_state)
-        else:
-            print("Warning: finish page returned empty state")
-            return None
-
-    except Exception as e:
-        print(f"Failed to fetch final state: {e}")
-        return None
-
-
-def run_evaluation(evaluator, final_state: Dict[str, Any], final_result: str) -> Dict[str, Any]:
-    """Run the evaluator and return results."""
-    try:
-        env_state = {"final_state": final_state, "final_result": final_result}
-        reward, _, message, info = evaluator.evaluate(env_state, final_result)
-
-        evaluated_success = all(result[0] for result in info["results"])
-
-        return {
-            "evaluated_success": evaluated_success,
-            "reward": reward,
-            "message": message,
-            "details": info,
-        }
-    except Exception as e:
-        print(f"Failed to run evaluation: {e}")
-        return {
-            "evaluated_success": None,
-            "reward": None,
-            "message": None,
-            "error": str(e),
-        }
-
-
-def save_agent_logs(
-    items: List[Dict[str, Any]],
-    output_dir: Path,
-    run_num: int,
-    timestamp_str: str,
-    save_screenshots: bool = True,
-) -> Path:
-    """
-    Save the agent conversation log, optionally extracting screenshots to separate files.
-
-    Args:
-        items: The full conversation history from the agent
-        output_dir: Directory to save logs
-        run_num: Run number for filename
-        timestamp_str: Timestamp string for filename
-        save_screenshots: Whether to extract and save screenshots separately
-
-    Returns:
-        Path to the saved log file
-    """
-    screenshots_dir = output_dir / f"run{run_num}_{timestamp_str}_screenshots"
-    screenshot_count = 0
-
-    # Process items to optionally extract screenshots
-    processed_items = []
-    for idx, item in enumerate(items):
-        processed_item = item.copy()
-
-        # Handle computer_call_output with base64 screenshots
-        if item.get("type") == "computer_call_output":
-            output = item.get("output", {})
-            if isinstance(output, dict) and output.get("type") == "input_image":
-                image_url = output.get("image_url", "")
-                if image_url.startswith("data:image/png;base64,"):
-                    screenshot_count += 1
-                    if save_screenshots:
-                        # Extract and save screenshot
-                        screenshots_dir.mkdir(parents=True, exist_ok=True)
-                        base64_data = image_url.replace("data:image/png;base64,", "")
-                        screenshot_path = screenshots_dir / f"screenshot_{screenshot_count:03d}.png"
-
-                        import base64
-
-                        with open(screenshot_path, "wb") as f:
-                            f.write(base64.b64decode(base64_data))
-
-                        # Replace base64 with file reference in log
-                        processed_item = item.copy()
-                        processed_item["output"] = output.copy()
-                        processed_item["output"]["image_url"] = f"file://{screenshot_path}"
-                    else:
-                        # Just truncate the base64 data
-                        processed_item = item.copy()
-                        processed_item["output"] = output.copy()
-                        processed_item["output"]["image_url"] = "[base64 screenshot truncated]"
-
-        processed_items.append(processed_item)
-
-    # Save the log file
-    log_path = output_dir / f"run{run_num}_{timestamp_str}_log.json"
-    with open(log_path, "w") as f:
-        json.dump(processed_items, f, indent=2, default=str)
-
-    print(f"Agent log saved to: {log_path}")
-    if save_screenshots and screenshot_count > 0:
-        print(f"Screenshots saved to: {screenshots_dir}/ ({screenshot_count} files)")
-
-    return log_path
-
-
-def make_safety_check_callback(autonomous: bool):
-    def acknowledge_safety_check_callback(message: str) -> bool:
-        if autonomous:
-            print(f"Safety Check Warning (auto-acknowledged): {message}")
-            return True
-        response = input(f"Safety Check Warning: {message}\nDo you want to acknowledge and proceed? (y/n): ").lower()
-        return response.lower().strip() == "y"
-
-    return acknowledge_safety_check_callback
+# Import shared utilities from utils.py
+from utils import (
+    create_evaluator,
+    fetch_final_state,
+    get_task_config,
+    make_safety_check_callback,
+    run_evaluation,
+    save_agent_logs,
+    usage_tracker,
+)
 
 
 def main():
@@ -239,9 +77,10 @@ def main():
     parser.add_argument(
         "--headless",
         action="store_true",
-        default=True,
         help="Run browser in headless mode (no visible window). Screenshots still work.",
     )
+    parser.add_argument("--width", type=int, default=1024, help="Browser window width")
+    parser.add_argument("--height", type=int, default=768, help="Browser window height")
     args = parser.parse_args()
 
     # If task-id is provided, load task config from registry
@@ -263,10 +102,12 @@ def main():
             print(f"Warning: Task '{args.task_id}' not found in tasks.yaml")
     ComputerClass = computers_config[args.computer]
 
-    # Build kwargs for computer class (headless only supported by local-playwright)
+    # Build kwargs for computer class (headless, width, height only supported by local-playwright)
     computer_kwargs = {}
-    if args.computer == "local-playwright" and args.headless:
-        computer_kwargs["headless"] = True
+    if args.computer == "local-playwright":
+        computer_kwargs["headless"] = args.headless
+        computer_kwargs["width"] = args.width
+        computer_kwargs["height"] = args.height
 
     # Eval mode: run task(s) and exit
     if args.eval:
@@ -304,7 +145,7 @@ def main():
                     items.append(
                         {
                             "role": "system",
-                            "content": "You are an autonomous agent. Complete tasks independently without asking for user confirmation or approval. Execute actions directly and only report back when the task is complete or if you encounter an unrecoverable error. Do not ask clarifying questions - make reasonable assumptions and proceed. You must use the provided site, i.e., the one that is already opened, and not any other site.",
+                            "content": "You are an autonomous agent. Complete tasks independently on the given site without asking for user confirmation or approval. Execute actions directly and only report back when the task is complete or if you encounter an unrecoverable error. Do not ask clarifying questions - make reasonable assumptions and proceed. You must use the provided site, i.e., the one that is already opened, and not any other site.",
                         }
                     )
 
