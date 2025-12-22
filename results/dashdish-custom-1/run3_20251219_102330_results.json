@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-1",
+  "run": 3,
+  "timestamp": "2025-12-19T10:23:31.038632",
+  "total_time_seconds": 80.15,
+  "evaluated_success": true,
+  "final_result": "The \"Matcha Croissant\" is $4.49, \"Iced Matcha Latte\" is $6.99, \"Ceremonial Grade Matcha Latte\" is $18.08, and \"Matcha Mochi Set (6)\" is $17.80 from Stonemill Matcha.",
+  "final_state_path": "results/dashdish-custom-1/run3_20251219_102330_final_state.json",
+  "log_path": "results/dashdish-custom-1/run3_20251219_102330_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 48437,
+    "output_tokens": 659,
+    "total_tokens": 49096,
+    "api_calls": 13,
+    "estimated_cost_usd": 0.153219,
+    "model": "computer-use-preview"
+  }
+}

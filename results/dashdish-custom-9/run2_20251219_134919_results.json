@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-9",
+  "run": 2,
+  "timestamp": "2025-12-19T13:49:20.249499",
+  "total_time_seconds": 891.88,
+  "evaluated_success": true,
+  "final_result": "Here's the price list for fries from the mentioned restaurants:\n\n- **Wingstop**: Seasoned Fries - $4.99\n- **Man vs. Fries**: The closest item is Chili Cheese Fries/Ultimate Nacho Fries - $16.70 (plain fries not available)\n- **McDonald's**: French Fries (Large) - $3.99\n- **Popeyes**: Cajun Fries - $3.49\n- **Ike's**: Dirty Fries - $6.99\n\nAmong these, Popeyes offers the cheapest option with their Cajun Fries at $3.49.",
+  "final_state_path": "results/dashdish-custom-9/run2_20251219_134919_final_state.json",
+  "log_path": "results/dashdish-custom-9/run2_20251219_134919_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 357185,
+    "output_tokens": 3517,
+    "total_tokens": 360702,
+    "api_calls": 64,
+    "estimated_cost_usd": 1.113759,
+    "model": "computer-use-preview"
+  }
+}

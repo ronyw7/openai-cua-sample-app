@@ -145,7 +145,7 @@ def main():
                     items.append(
                         {
                             "role": "system",
-                            "content": "You are an autonomous agent. Complete tasks independently on the given site without asking for user confirmation or approval. Execute actions directly and only report back when the task is complete or if you encounter an unrecoverable error. Do not ask clarifying questions - make reasonable assumptions and proceed.",
+                            "content": "You are an autonomous agent. Complete tasks independently on the given site without asking for user confirmation or approval. Execute actions directly and only report back when the task is complete or if you encounter an unrecoverable error. Do not ask clarifying questions - make reasonable assumptions and proceed. You must use the provided site, i.e., the one that is already opened, and not any other site.",
                         }
                     )
 

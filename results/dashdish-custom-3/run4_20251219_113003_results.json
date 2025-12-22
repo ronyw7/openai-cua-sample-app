@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-3",
+  "run": 4,
+  "timestamp": "2025-12-19T11:30:04.700034",
+  "total_time_seconds": 131.21,
+  "evaluated_success": true,
+  "final_result": "I successfully placed an order for a taco from Taco Boys on DashDish. The order number is #ORD-1766143777391-217, and it's being prepared for delivery to 710 Portofino Ln, Foster City, CA 94404, USA.",
+  "final_state_path": "results/dashdish-custom-3/run4_20251219_113003_final_state.json",
+  "log_path": "results/dashdish-custom-3/run4_20251219_113003_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 60023,
+    "output_tokens": 770,
+    "total_tokens": 60793,
+    "api_calls": 15,
+    "estimated_cost_usd": 0.189309,
+    "model": "computer-use-preview"
+  }
+}

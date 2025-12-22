@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-6",
+  "run": 3,
+  "timestamp": "2025-12-19T12:31:30.794945",
+  "total_time_seconds": 172.2,
+  "evaluated_success": false,
+  "final_result": "Out of the first five restaurants in the \"Best near you\" section, three have under 20 reviews: Gambinos New York Subs, Wingstop, and Man vs. Fries. The other two, Mashallah Halal Food Pakistani Food and Taco Boys, have more than 20 reviews.",
+  "final_state_path": "results/dashdish-custom-6/run3_20251219_123129_final_state.json",
+  "log_path": "results/dashdish-custom-6/run3_20251219_123129_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 87798,
+    "output_tokens": 1058,
+    "total_tokens": 88856,
+    "api_calls": 20,
+    "estimated_cost_usd": 0.27609,
+    "model": "computer-use-preview"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "task_id": "dashdish-custom-5",
+  "run": 3,
+  "timestamp": "2025-12-19T19:41:13.320311",
+  "total_time_seconds": 23.28,
+  "evaluated_success": true,
+  "final_result": "There are 5 restaurants listed under the smoothie category.",
+  "final_state_path": "results/dashdish-custom-5/run3_20251219_194112_final_state.json",
+  "log_path": "results/dashdish-custom-5/run3_20251219_194112_log.json",
+  "error": null,
+  "usage": {
+    "input_tokens": 6195,
+    "output_tokens": 189,
+    "total_tokens": 6384,
+    "api_calls": 4,
+    "estimated_cost_usd": 0.020853,
+    "model": "computer-use-preview"
+  }
+}
