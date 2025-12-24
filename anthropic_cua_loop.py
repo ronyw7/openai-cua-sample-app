@@ -79,9 +79,72 @@ class AnthropicComputerAdapter:
 
         elif action == "key":
             # Press a key or key combination
-            key = params.get("key", "")
-            # Anthropic sends keys like "Return", "ctrl+c", etc.
+            key = params.get("key") or params.get("text", "")
+            # Anthropic uses X11 keysym names (xdotool style) like "Return", "Page_Down"
+            # Map these to Playwright key names
+            key_map = {
+                # Enter/Return key
+                "Return": "Enter",
+                "KP_Enter": "Enter",
+                # Backspace
+                "BackSpace": "Backspace",
+                # Navigation keys (X11 uses underscores)
+                "Page_Up": "PageUp",
+                "Page_Down": "PageDown",
+                "Prior": "PageUp",      # Alternative X11 name
+                "Next": "PageDown",     # Alternative X11 name
+                # Arrow keys (X11 style)
+                "Left": "ArrowLeft",
+                "Right": "ArrowRight",
+                "Up": "ArrowUp",
+                "Down": "ArrowDown",
+                # Escape
+                "Escape": "Escape",
+                # Tab
+                "Tab": "Tab",
+                "ISO_Left_Tab": "Tab",  # Shift+Tab in X11
+                # Space
+                "space": " ",
+                # Delete/Insert/Home/End
+                "Delete": "Delete",
+                "Insert": "Insert",
+                "Home": "Home",
+                "End": "End",
+                # Modifier keys (lowercase as used in combos like "ctrl+s")
+                "ctrl": "Control",
+                "Control_L": "Control",
+                "Control_R": "Control",
+                "alt": "Alt",
+                "Alt_L": "Alt",
+                "Alt_R": "Alt",
+                "shift": "Shift",
+                "Shift_L": "Shift",
+                "Shift_R": "Shift",
+                "super": "Meta",
+                "Super_L": "Meta",
+                "Super_R": "Meta",
+                "cmd": "Meta",
+                "win": "Meta",
+                # Function keys are usually the same but ensure consistency
+                "F1": "F1", "F2": "F2", "F3": "F3", "F4": "F4",
+                "F5": "F5", "F6": "F6", "F7": "F7", "F8": "F8",
+                "F9": "F9", "F10": "F10", "F11": "F11", "F12": "F12",
+                # Caps Lock
+                "Caps_Lock": "CapsLock",
+                # Num Lock
+                "Num_Lock": "NumLock",
+                # Print Screen
+                "Print": "PrintScreen",
+                # Scroll Lock
+                "Scroll_Lock": "ScrollLock",
+                # Pause
+                "Pause": "Pause",
+                # Menu key
+                "Menu": "ContextMenu",
+            }
+            # Split and map each key part
             keys = key.split("+") if "+" in key else [key]
+            keys = [key_map.get(k, k) for k in keys]
             self.computer.keypress(keys)
 
         elif action == "type":
