@@ -1,22 +1,12 @@
-#!/usr/bin/env python3
 """
 Anthropic Computer Use Agent loop using the openai-cua-sample-app's Computer abstraction.
-
-This provides a clean adapter from Anthropic's computer_20250124 tool to the
-existing Playwright-based Computer implementation.
-
-Usage:
-    python anthropic_cua_loop.py
-
-Environment Variables:
-    ANTHROPIC_API_KEY: Your Anthropic API key
-    START_URL: Optional URL to navigate to on startup (default: about:blank)
 """
 
+import copy
 import os
 import sys
 import time
-from typing import Any
+from typing import Any, List
 
 from anthropic import Anthropic
 from anthropic.types.beta import (
@@ -28,8 +18,110 @@ from anthropic.types.beta import (
 from computers.computer import Computer
 from computers.default import LocalPlaywrightBrowser
 
+# See anthropic-quickstarts/computer-use-demo for more details
+DEFAULT_MAX_RECENT_IMAGES = 10  # Default number of recent images to keep
+PROMPT_CACHING_BETA_FLAG = "prompt-caching-2024-07-31"  # Prompt caching beta flag
 
-# Action mapping from Anthropic's computer_20250124 to Computer interface
+
+def filter_to_n_most_recent_images(
+    messages: List[BetaMessageParam],
+    n: int,
+) -> List[BetaMessageParam]:
+    """
+    Filter messages to keep only the N most recent images.
+
+    This mirrors the implementation in anthropic-quickstarts/computer-use-demo.
+    Older images are replaced with placeholder text to preserve conversation
+    structure while reducing token count.
+
+    Args:
+        messages: The conversation messages list
+        n: Number of most recent images to keep
+
+    Returns:
+        A new messages list with older images replaced by placeholders
+    """
+    if n <= 0:
+        return messages  # No filtering
+
+    # Deep copy to avoid modifying original
+    messages = copy.deepcopy(messages)
+
+    # Count total images and find their locations
+    image_locations = []  # List of (msg_idx, content_idx, item_idx or None)
+
+    for msg_idx, message in enumerate(messages):
+        if message.get("role") != "user":
+            continue
+
+        content = message.get("content")
+        if not isinstance(content, list):
+            continue
+
+        for content_idx, content_item in enumerate(content):
+            # Handle tool_result blocks (which contain images as nested content)
+            if isinstance(content_item, dict) and content_item.get("type") == "tool_result":
+                tool_content = content_item.get("content")
+                if isinstance(tool_content, list):
+                    for item_idx, item in enumerate(tool_content):
+                        if isinstance(item, dict) and item.get("type") == "image":
+                            image_locations.append((msg_idx, content_idx, item_idx))
+            # Handle direct image blocks
+            elif isinstance(content_item, dict) and content_item.get("type") == "image":
+                image_locations.append((msg_idx, content_idx, None))
+
+    # Keep only the N most recent images
+    images_to_remove = image_locations[:-n] if len(image_locations) > n else []
+
+    # Replace old images with placeholder text
+    for msg_idx, content_idx, item_idx in images_to_remove:
+        content = messages[msg_idx]["content"]
+        if item_idx is not None:
+            # Image is nested inside a tool_result
+            tool_content = content[content_idx]["content"]
+            tool_content[item_idx] = {
+                "type": "text",
+                "text": "[Screenshot omitted to reduce context length]",
+            }
+        else:
+            # Direct image block
+            content[content_idx] = {
+                "type": "text",
+                "text": "[Screenshot omitted to reduce context length]",
+            }
+
+    return messages
+
+
+def inject_prompt_caching(messages: List[BetaMessageParam]) -> None:
+    """
+    Set cache breakpoints for the 3 most recent turns.
+
+    This mirrors the implementation in anthropic-quickstarts/computer-use-demo.
+    One cache breakpoint is left for tools/system prompt, to be shared across sessions.
+
+    Modifies messages in-place.
+    """
+    breakpoints_remaining = 3
+    for message in reversed(messages):
+        if message.get("role") == "user":
+            content = message.get("content")
+            if isinstance(content, list) and len(content) > 0:
+                if breakpoints_remaining:
+                    breakpoints_remaining -= 1
+                    # Add cache_control to the last content item
+                    last_item = content[-1]
+                    if isinstance(last_item, dict):
+                        last_item["cache_control"] = {"type": "ephemeral"}  # type: ignore
+                else:
+                    # Remove any existing cache_control from older messages
+                    last_item = content[-1]
+                    if isinstance(last_item, dict) and "cache_control" in last_item:
+                        del last_item["cache_control"]  # type: ignore
+                    # We'll only ever have one extra turn per loop
+                    break
+
+
 class AnthropicComputerAdapter:
     """
     Adapts Anthropic's computer_20250124 actions to the Computer interface.
@@ -55,10 +147,8 @@ class AnthropicComputerAdapter:
     def __init__(self, computer: Computer):
         self.computer = computer
         self._last_mouse_position = (0, 0)
-        # For direct Playwright access when Computer interface is insufficient
         self._page = getattr(computer, "_page", None)
-        # Track keys currently held down (for hold_key action)
-        self._held_keys: set[str] = set()
+        self._held_keys: set[str] = set()  # Track keys currently held down (for hold_key action)
 
     def _release_held_keys(self) -> None:
         """Release all currently held keys."""
@@ -70,8 +160,6 @@ class AnthropicComputerAdapter:
     def execute_action(self, action: str, **params) -> str | None:
         """
         Execute an Anthropic computer action.
-
-        Returns None (screenshot is handled by caller after action).
         """
         if action == "screenshot":
             # Screenshot is handled by returning the image after this call
@@ -91,8 +179,8 @@ class AnthropicComputerAdapter:
                 # Navigation keys (X11 uses underscores)
                 "Page_Up": "PageUp",
                 "Page_Down": "PageDown",
-                "Prior": "PageUp",      # Alternative X11 name
-                "Next": "PageDown",     # Alternative X11 name
+                "Prior": "PageUp",  # Alternative X11 name
+                "Next": "PageDown",  # Alternative X11 name
                 # Arrow keys (X11 style)
                 "Left": "ArrowLeft",
                 "Right": "ArrowRight",
@@ -126,9 +214,18 @@ class AnthropicComputerAdapter:
                 "cmd": "Meta",
                 "win": "Meta",
                 # Function keys are usually the same but ensure consistency
-                "F1": "F1", "F2": "F2", "F3": "F3", "F4": "F4",
-                "F5": "F5", "F6": "F6", "F7": "F7", "F8": "F8",
-                "F9": "F9", "F10": "F10", "F11": "F11", "F12": "F12",
+                "F1": "F1",
+                "F2": "F2",
+                "F3": "F3",
+                "F4": "F4",
+                "F5": "F5",
+                "F6": "F6",
+                "F7": "F7",
+                "F8": "F8",
+                "F9": "F9",
+                "F10": "F10",
+                "F11": "F11",
+                "F12": "F12",
                 # Caps Lock
                 "Caps_Lock": "CapsLock",
                 # Num Lock
@@ -261,21 +358,14 @@ class AnthropicComputerAdapter:
                 print("Warning: left_mouse_up requires direct Playwright access")
 
         elif action == "scroll":
-            # Scroll at coordinate in a direction
-            # Use mouse.wheel() directly for proper scrolling behavior
-            # (window.scrollBy only scrolls the document, not scrollable elements)
             coord = params.get("coordinate", [0, 0])
-            # Handle both parameter name variations the API might send
-            # API may use "direction"/"amount" or "scroll_direction"/"scroll_amount"
             direction = params.get("direction", params.get("scroll_direction", "down"))
             amount = params.get("amount", params.get("scroll_amount", 3))
 
             x, y = coord[0], coord[1]
 
-            # Convert direction to wheel deltas
-            # Playwright mouse.wheel(delta_x, delta_y): positive = scroll right/down
             delta_x, delta_y = 0, 0
-            pixels_per_click = 100  # Approximate pixels per scroll unit
+            pixels_per_click = 100
 
             if direction == "down":
                 delta_y = amount * pixels_per_click
@@ -286,26 +376,18 @@ class AnthropicComputerAdapter:
             elif direction == "left":
                 delta_x = -amount * pixels_per_click
 
-            # Use direct Playwright wheel for proper scrolling
             if self._page:
-                # Move to position first, then fire wheel event
                 self._page.mouse.move(x, y)
                 self._page.mouse.wheel(delta_x, delta_y)
-                # Small wait for scroll animation to complete
                 time.sleep(0.1)
             else:
-                # Fallback to Computer interface (may not work for all elements)
                 self.computer.scroll(x, y, delta_x, delta_y)
 
             self._last_mouse_position = (x, y)
 
         elif action == "hold_key":
-            # Hold a key while performing other actions
-            # This is typically used in combination with other actions
-            # The key will be released after the next action is executed
             key = params.get("key", "")
             if self._page:
-                # Map common key names
                 key_map = {
                     "ctrl": "Control",
                     "cmd": "Meta",
@@ -321,15 +403,13 @@ class AnthropicComputerAdapter:
                 print("Warning: hold_key requires direct Playwright access")
 
         elif action == "wait":
-            # Wait for a specified duration (in milliseconds)
             ms = params.get("duration", 1000)
             self.computer.wait(ms)
 
         else:
             print(f"Warning: Unknown action '{action}', ignoring")
 
-        # Release any held keys after each action (except hold_key itself)
-        # This implements the "release happens on next action" behavior
+        # Release any held keys after each action
         if action != "hold_key":
             self._release_held_keys()
 
@@ -354,7 +434,6 @@ def create_anthropic_response(
         betas=["computer-use-2025-01-24"],
     )
 
-    # Convert response content to params format
     content_blocks = []
     for block in response.content:
         if hasattr(block, "text"):
@@ -417,7 +496,7 @@ def run_agent_loop(
     ]
 
     # System prompt
-    system = f"""You are an autonomous agent. Complete tasks independently on the given site without asking for user confirmation or approval. Execute actions directly and only report back when the task is complete or if you encounter an unrecoverable error. Do not ask clarifying questions - make reasonable assumptions and proceed."""
+    system = f"""You are an autonomous agent. Complete tasks independently on the given site without asking for user confirmation or approval. Execute actions directly and only report back when the task is complete or if you encounter an unrecoverable error. Do not ask clarifying questions - make reasonable assumptions and proceed. You must use the provided site, i.e., the one that is already opened, and not any other site."""
 
     # Initial message with task
     messages: list[BetaMessageParam] = [{"role": "user", "content": task}]
@@ -431,11 +510,10 @@ def run_agent_loop(
     print(f"Model: {model}")
     print("=" * 60)
 
-    while True:  # Run until agent completes (no more tool calls)
+    while True:  # Run until agent completes i.e., no more tool calls
         step += 1
         print(f"\n[Step {step}]")
 
-        # Call the API
         try:
             response, content_blocks = create_anthropic_response(
                 client=client,
@@ -449,7 +527,6 @@ def run_agent_loop(
             print(f"API Error: {error_message}")
             break
 
-        # Add assistant response to messages
         messages.append(
             {
                 "role": "assistant",
@@ -457,7 +534,6 @@ def run_agent_loop(
             }
         )
 
-        # Process response
         tool_results = []
         has_tool_use = False
 

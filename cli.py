@@ -14,6 +14,7 @@ from computers.default import *
 from utils import (
     create_evaluator,
     fetch_final_state,
+    get_next_run_number,
     get_task_config,
     make_safety_check_callback,
     run_evaluation,
@@ -127,9 +128,13 @@ def main():
         # Track results across runs
         all_results = []
 
-        for run_num in range(1, args.runs + 1):
+        # Determine starting run number by checking existing runs
+        output_dir = Path("results") / (args.task_id or "unknown")
+        start_run = get_next_run_number(output_dir)
+
+        for run_num in range(start_run, start_run + args.runs):
             print(f"\n{'=' * 50}")
-            print(f"RUN {run_num}/{args.runs}")
+            print(f"RUN {run_num} (session: {run_num - start_run + 1}/{args.runs})")
             print(f"{'=' * 50}\n")
 
             # Create fresh browser session for each run
@@ -199,7 +204,6 @@ def main():
 
                 # Auto-generate output path based on task-id
                 timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-                output_dir = Path("results") / (args.task_id or "unknown")
                 output_dir.mkdir(parents=True, exist_ok=True)
 
                 # Save agent logs (full conversation history with screenshots)

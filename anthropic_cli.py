@@ -9,26 +9,28 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from anthropic import Anthropic
 from anthropic.types.beta import (
-    BetaContentBlockParam,
     BetaMessageParam,
     BetaTextBlockParam,
     BetaToolResultBlockParam,
 )
-
-# Import the adapter from anthropic_cua_loop.py
-from anthropic_cua_loop import AnthropicComputerAdapter
+from anthropic_cua_loop import (
+    DEFAULT_MAX_RECENT_IMAGES,
+    PROMPT_CACHING_BETA_FLAG,
+    AnthropicComputerAdapter,
+    filter_to_n_most_recent_images,
+    inject_prompt_caching,
+)
 from computers.computer import Computer
 from computers.default import LocalPlaywrightBrowser
-
-# Import shared utilities
 from utils import (
     UsageTracker,
     create_evaluator,
     fetch_final_state,
+    get_next_run_number,
     get_task_config,
     run_evaluation,
     save_agent_logs,
@@ -41,12 +43,27 @@ def run_agent_loop_with_tracking(
     model: str = "claude-sonnet-4-20250514",
     start_url: Optional[str] = None,
     usage_tracker: Optional[UsageTracker] = None,
+    only_n_most_recent_images: int = DEFAULT_MAX_RECENT_IMAGES,
+    enable_prompt_caching: bool = True,
 ) -> Dict[str, Any]:
     """
     Run the Anthropic computer use agent loop with full tracking.
 
     Runs until the agent completes (no more tool calls), matching OpenAI behavior.
     Returns dict with results, outputs, usage, and timing.
+
+    Args:
+        computer: Computer interface to use
+        task: The task to perform
+        model: Anthropic model to use
+        start_url: Optional URL to navigate to first
+        usage_tracker: Optional usage tracker (created if not provided)
+        only_n_most_recent_images: Number of recent screenshots to keep in context.
+            Set to 0 to keep all images. Default: 10
+            See anthropic-quickstarts/computer-use-demo.
+        enable_prompt_caching: Enable Anthropic prompt caching for 90% cheaper cached reads.
+            When enabled, image truncation is disabled since breaking cache is more expensive.
+            Default: True (recommended for cost savings).
     """
     client = Anthropic()
     adapter = AnthropicComputerAdapter(computer)
@@ -80,22 +97,54 @@ def run_agent_loop_with_tracking(
     final_response = None
     all_outputs = []
 
+    # When prompt caching is enabled, we disable image truncation because
+    # cached reads are 90% cheaper - breaking the cache costs more than keeping images
+    # This is the same as the implementation in anthropic-quickstarts/computer-use-demo.
+    effective_image_limit = 0 if enable_prompt_caching else only_n_most_recent_images
+
     print(f"Starting agent with task: {task}")
     print(f"Model: {model}")
+    if enable_prompt_caching:
+        print("Prompt caching: ENABLED (90% cheaper cached reads, image truncation disabled)")
+    elif effective_image_limit > 0:
+        print(f"Image context limit: keeping {effective_image_limit} most recent screenshots")
+    else:
+        print("Image context limit: DISABLED (keeping all screenshots)")
     print("=" * 60)
+
+    # Build betas list
+    betas = ["computer-use-2025-01-24"]
+    if enable_prompt_caching:
+        betas.append(PROMPT_CACHING_BETA_FLAG)
 
     while True:  # Run until agent completes (no more tool calls)
         step += 1
         print(f"\n[Step {step}]")
 
         try:
+            # Apply image filtering if enabled (not used with prompt caching)
+            if effective_image_limit > 0:
+                filtered_messages = filter_to_n_most_recent_images(messages, effective_image_limit)
+            else:
+                filtered_messages = messages
+
+            # Inject prompt caching breakpoints if enabled
+            if enable_prompt_caching:
+                inject_prompt_caching(filtered_messages)
+
+            # Build system prompt with cache control if prompt caching is enabled
+            if enable_prompt_caching:
+                system_param = [{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}]
+            else:
+                system_param = system
+
             response = client.beta.messages.create(
                 model=model,
                 max_tokens=4096,
-                messages=messages,
+                messages=filtered_messages,
                 tools=tools,
-                system=system,
-                betas=["computer-use-2025-01-24"],
+                system=system_param,
+                betas=betas,
             )
         except Exception as e:
             print(f"API Error: {e}")
@@ -234,6 +283,18 @@ def main():
     parser.add_argument("--task-id", type=str, help="Task ID from tasks.yaml", default=None)
     parser.add_argument("--runs", type=int, default=1, help="Number of evaluation runs")
     parser.add_argument("--debug", action="store_true", help="Enable debug output")
+    parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable prompt caching (enabled by default for 90%% cheaper cached reads)",
+    )
+    parser.add_argument(
+        "--max-images",
+        type=int,
+        default=DEFAULT_MAX_RECENT_IMAGES,
+        help=f"Max recent screenshots to keep when caching is disabled (default={DEFAULT_MAX_RECENT_IMAGES}). "
+        "Ignored when prompt caching is enabled.",
+    )
     args = parser.parse_args()
 
     if not os.getenv("ANTHROPIC_API_KEY"):
@@ -270,9 +331,13 @@ def main():
 
         all_results = []
 
-        for run_num in range(1, args.runs + 1):
+        # Determine starting run number by checking existing runs
+        output_dir = Path("results") / f"anthropic-{args.task_id or 'unknown'}"
+        start_run = get_next_run_number(output_dir)
+
+        for run_num in range(start_run, start_run + args.runs):
             print(f"\n{'=' * 50}")
-            print(f"RUN {run_num}/{args.runs}")
+            print(f"RUN {run_num} (session: {run_num - start_run + 1}/{args.runs})")
             print(f"{'=' * 50}\n")
 
             usage_tracker = UsageTracker(model=args.model)
@@ -286,6 +351,8 @@ def main():
                         model=args.model,
                         start_url=args.url,
                         usage_tracker=usage_tracker,
+                        only_n_most_recent_images=args.max_images,
+                        enable_prompt_caching=not args.no_cache,
                     )
                     error = None
                 except Exception as e:
@@ -309,7 +376,6 @@ def main():
 
                 # Save logs using shared function
                 timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-                output_dir = Path("results") / f"anthropic-{args.task_id or 'unknown'}"
                 output_dir.mkdir(parents=True, exist_ok=True)
 
                 log_path = save_agent_logs(result.get("outputs", []), output_dir, run_num, timestamp_str)
@@ -388,6 +454,8 @@ def main():
                     task=user_input,
                     model=args.model,
                     usage_tracker=usage_tracker,
+                    only_n_most_recent_images=args.max_images,
+                    enable_prompt_caching=not args.no_cache,
                 )
                 print(f"\nFinal: {result['final_response']}\n")
                 args.input = None
