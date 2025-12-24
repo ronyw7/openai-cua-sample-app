@@ -133,9 +133,11 @@ class UsageTracker:
     Handles both OpenAI and Anthropic formats:
     - OpenAI Chat API: prompt_tokens, completion_tokens, prompt_tokens_details.cached_tokens
     - OpenAI Responses API: input_tokens, output_tokens
-    - Anthropic: input_tokens, output_tokens
+    - Anthropic: input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens
 
-    Cached tokens (OpenAI) are 50% cheaper than regular input tokens.
+    Caching costs:
+    - OpenAI: cached tokens are 50% cheaper than regular input tokens
+    - Anthropic: cache writes are 25% MORE expensive, cache reads are 90% cheaper
 
     Note: E2E latency should be tracked separately (total_time_seconds in results).
     """
@@ -143,6 +145,9 @@ class UsageTracker:
     input_tokens: int = 0
     output_tokens: int = 0
     cached_tokens: int = 0  # OpenAI cached tokens (50% cheaper)
+    # Anthropic-specific cache tracking
+    cache_creation_tokens: int = 0  # Tokens written to cache (1.25x cost)
+    cache_read_tokens: int = 0  # Tokens read from cache (0.1x cost)
     total_tokens: int = 0
     api_calls: int = 0
     model: str = "computer-use-preview"
@@ -152,6 +157,11 @@ class UsageTracker:
         """Add usage from an API response (works with both dict and object)."""
         if not usage:
             return
+
+        # Initialize cache tracking variables
+        cached_tokens = 0  # OpenAI
+        cache_creation = 0  # Anthropic
+        cache_read = 0  # Anthropic
 
         # Extract tokens based on format (dict vs object, OpenAI vs Anthropic)
         if isinstance(usage, dict):
@@ -164,27 +174,33 @@ class UsageTracker:
             prompt_details = usage.get("prompt_tokens_details") or usage.get("input_tokens_details")
             if isinstance(prompt_details, dict):
                 cached_tokens = prompt_details.get("cached_tokens", 0)
-            else:
-                cached_tokens = 0
+
+            # Anthropic cache fields
+            cache_creation = usage.get("cache_creation_input_tokens", 0)
+            cache_read = usage.get("cache_read_input_tokens", 0)
         else:
             # Object format (Anthropic, or parsed OpenAI)
             input_tokens = getattr(usage, "input_tokens", None) or getattr(usage, "prompt_tokens", 0)
             output_tokens = getattr(usage, "output_tokens", None) or getattr(usage, "completion_tokens", 0)
 
-            # Try to get cached tokens from details
+            # Try to get cached tokens from details (OpenAI)
             prompt_details = getattr(usage, "prompt_tokens_details", None) or getattr(
                 usage, "input_tokens_details", None
             )
             if prompt_details is not None:
                 cached_tokens = getattr(prompt_details, "cached_tokens", 0) or 0
-            else:
-                cached_tokens = 0
+
+            # Anthropic cache fields
+            cache_creation = getattr(usage, "cache_creation_input_tokens", 0) or 0
+            cache_read = getattr(usage, "cache_read_input_tokens", 0) or 0
 
         total = input_tokens + output_tokens
 
         self.input_tokens += input_tokens
         self.output_tokens += output_tokens
         self.cached_tokens += cached_tokens
+        self.cache_creation_tokens += cache_creation
+        self.cache_read_tokens += cache_read
         self.total_tokens += total
         self.api_calls += 1
 
@@ -198,48 +214,113 @@ class UsageTracker:
         }
         if cached_tokens > 0:
             call_record["cached_tokens"] = cached_tokens
+        if cache_creation > 0:
+            call_record["cache_creation_input_tokens"] = cache_creation
+        if cache_read > 0:
+            call_record["cache_read_input_tokens"] = cache_read
 
         self.call_history.append(call_record)
 
-    def get_cost(self) -> float:
-        """Calculate estimated cost in USD.
+    def _is_anthropic_model(self) -> bool:
+        """Check if this is an Anthropic model."""
+        model_lower = self.model.lower()
+        return "claude" in model_lower or "sonnet" in model_lower or "haiku" in model_lower or "opus" in model_lower
 
-        For OpenAI, cached tokens are 50% cheaper than regular input tokens.
-        Cost = (uncached_input * input_price) + (cached * input_price * 0.5) + (output * output_price)
+    def _get_anthropic_cost(self, pricing: Dict[str, float]) -> float:
+        """Calculate cost for Anthropic API.
+
+        Anthropic token fields with prompt caching are ALL SEPARATE (not overlapping):
+        - input_tokens: Uncached tokens (not written to cache, not read from cache)
+        - cache_creation_input_tokens: Tokens written TO cache (1.25x cost)
+        - cache_read_input_tokens: Tokens read FROM cache (0.1x cost)
+
+        Cost breakdown:
+        - input_tokens @ 1.0x
+        - cache_creation_input_tokens @ 1.25x
+        - cache_read_input_tokens @ 0.1x
+        - output_tokens @ 1.0x output rate
         """
+        input_price = pricing["input"]
+        output_price = pricing["output"]
+
+        # All token types are separate, not overlapping
+        input_cost = (self.input_tokens / 1_000_000) * input_price
+        cache_write_cost = (self.cache_creation_tokens / 1_000_000) * input_price * 1.25
+        cache_read_cost = (self.cache_read_tokens / 1_000_000) * input_price * 0.1
+        output_cost = (self.output_tokens / 1_000_000) * output_price
+        
+        return input_cost + cache_write_cost + cache_read_cost + output_cost
+
+    def _get_openai_cost(self, pricing: Dict[str, float]) -> float:
+        """Calculate cost for OpenAI API.
+
+        OpenAI token fields with caching:
+        - input_tokens/prompt_tokens: Total input tokens (includes cached)
+        - cached_tokens: Subset served from cache (50% cheaper)
+
+        Cost breakdown:
+        - Uncached = input_tokens - cached_tokens (1.0x)
+        - Cached = cached_tokens (0.5x)
+        """
+        input_price = pricing["input"]
+        output_price = pricing["output"]
+
+        uncached_input = self.input_tokens - self.cached_tokens
+        
+        input_cost = (uncached_input / 1_000_000) * input_price
+        cached_cost = (self.cached_tokens / 1_000_000) * input_price * 0.5
+        output_cost = (self.output_tokens / 1_000_000) * output_price
+        
+        return input_cost + cached_cost + output_cost
+
+    def get_cost(self) -> float:
+        """Calculate estimated cost in USD based on the model provider."""
         try:
             pricing = get_model_pricing(self.model)
         except ValueError:
             # Fallback if pricing not found
             pricing = {"input": 3.0, "output": 15.0}
 
-        # Cached tokens are included in input_tokens, so subtract for uncached
-        uncached_input = self.input_tokens - self.cached_tokens
-
-        # Uncached input at full price, cached at 50%
-        input_cost = (uncached_input / 1_000_000) * pricing["input"]
-        cached_cost = (self.cached_tokens / 1_000_000) * pricing["input"] * 0.5
-        output_cost = (self.output_tokens / 1_000_000) * pricing["output"]
-
-        return input_cost + cached_cost + output_cost
+        if self._is_anthropic_model():
+            return self._get_anthropic_cost(pricing)
+        else:
+            return self._get_openai_cost(pricing)
 
     def get_summary(self) -> Dict[str, Any]:
         """Get a summary of usage and costs."""
-        return {
+        summary = {
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
-            "cached_tokens": self.cached_tokens,  # Always show for transparency
             "total_tokens": self.total_tokens,
             "api_calls": self.api_calls,
             "estimated_cost_usd": round(self.get_cost(), 6),
             "model": self.model,
         }
+        
+        # Add OpenAI cache metrics if present
+        if self.cached_tokens > 0:
+            summary["cached_tokens"] = self.cached_tokens
+        
+        # Add Anthropic cache metrics if present
+        if self.cache_creation_tokens > 0 or self.cache_read_tokens > 0:
+            summary["cache_creation_input_tokens"] = self.cache_creation_tokens
+            summary["cache_read_input_tokens"] = self.cache_read_tokens
+            # Calculate cache hit rate: what % of total input was served from cache
+            # Total input = input_tokens + cache_creation_tokens + cache_read_tokens
+            total_input = self.input_tokens + self.cache_creation_tokens + self.cache_read_tokens
+            if total_input > 0:
+                cache_hit_rate = self.cache_read_tokens / total_input
+                summary["cache_hit_rate"] = round(cache_hit_rate, 4)
+        
+        return summary
 
     def reset(self):
         """Reset all counters."""
         self.input_tokens = 0
         self.output_tokens = 0
         self.cached_tokens = 0
+        self.cache_creation_tokens = 0
+        self.cache_read_tokens = 0
         self.total_tokens = 0
         self.api_calls = 0
         self.call_history.clear()
@@ -498,3 +579,37 @@ def make_safety_check_callback(autonomous: bool):
         return response.lower().strip() == "y"
 
     return acknowledge_safety_check_callback
+
+
+def get_next_run_number(output_dir: Path) -> int:
+    """
+    Determine the next run number by checking for existing run result files.
+    
+    Scans the output directory for files matching 'run*_*_results.json' pattern
+    and returns max(existing_run_numbers) + 1, or 1 if no existing runs.
+    
+    Args:
+        output_dir: Path to the results directory for this task
+        
+    Returns:
+        The next run number to use (1-indexed)
+    """
+    if not output_dir.exists():
+        return 1
+    
+    existing_runs = []
+    for f in output_dir.glob("run*_*_results.json"):
+        # Extract run number from filename like "run3_20251224_063125_results.json"
+        try:
+            run_part = f.name.split("_")[0]  # "run3"
+            run_num_str = run_part.replace("run", "")
+            existing_runs.append(int(run_num_str))
+        except (ValueError, IndexError):
+            continue
+    
+    if existing_runs:
+        next_run = max(existing_runs) + 1
+        print(f"Found {len(existing_runs)} existing runs, starting from run {next_run}")
+        return next_run
+    
+    return 1
